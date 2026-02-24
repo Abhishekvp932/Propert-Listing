@@ -1,0 +1,68 @@
+import { IAuthService } from "../../interface/auth/IAuthService";
+import { IUserRepository } from "../../interface/user/IUserRepository";
+import { PayloadUser } from "../../types/payloadUser";
+import { comparePassword, hashPassword } from "../../utility/hash";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  TokenPayload,
+} from "../../utility/token";
+export class AuthService implements IAuthService {
+  constructor(private _userRepository: IUserRepository) {}
+
+  async login(
+    email: string,
+    password: string,
+  ): Promise<{ accessToken: string; refreshToken: string; user: PayloadUser }> {
+    const user = await this._userRepository.findByEmail(email);
+
+    if (!user) {
+      throw new Error("user not found");
+    }
+
+    const isPassword = await comparePassword(password, user.password);
+
+    if (!isPassword) {
+      throw new Error("Incorrect Password");
+    }
+
+    const payload: TokenPayload = {
+      _id: user._id.toString(),
+      email: user.email,
+      name: user.name,
+    };
+
+    const accessToken = generateAccessToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+    return {
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      user: payload,
+    };
+  }
+
+  async signup(
+    name: string,
+    email: string,
+    phone: string,
+    password: string,
+  ): Promise<{ msg: string }> {
+    const existsUser = await this._userRepository.findByEmail(email);
+
+    if (existsUser) {
+      throw new Error("User Already Exists");
+    }
+
+    const hashedPassword = await hashPassword(password);
+
+    const newUser = {
+      name,
+      email,
+      phone,
+      password: hashedPassword,
+    };
+
+    await this._userRepository.create(newUser);
+    return { msg: "User Registration completed" };
+  }
+}
