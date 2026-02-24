@@ -64,7 +64,7 @@ export function Header() {
               Browse
             </Link>
             <Link
-              to="#"
+              to="/sell-page"
               className="text-sm text-muted-foreground hover:text-foreground transition"
             >
               Sell

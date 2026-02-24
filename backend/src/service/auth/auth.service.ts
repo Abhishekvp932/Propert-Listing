@@ -1,6 +1,7 @@
 import { IAuthService } from "../../interface/auth/IAuthService";
 import { IUserRepository } from "../../interface/user/IUserRepository";
 import { PayloadUser } from "../../types/payloadUser";
+import { ErrorMessage } from "../../utility/errorMessage";
 import { comparePassword, hashPassword } from "../../utility/hash";
 import {
   generateAccessToken,
@@ -17,13 +18,13 @@ export class AuthService implements IAuthService {
     const user = await this._userRepository.findByEmail(email);
 
     if (!user) {
-      throw new Error("user not found");
+      throw new Error(ErrorMessage.USER_NOT_FOUND);
     }
 
     const isPassword = await comparePassword(password, user.password);
 
     if (!isPassword) {
-      throw new Error("Incorrect Password");
+      throw new Error(ErrorMessage.INCORRECT_PASSWORD);
     }
 
     const payload: TokenPayload = {
@@ -50,7 +51,7 @@ export class AuthService implements IAuthService {
     const existsUser = await this._userRepository.findByEmail(email);
 
     if (existsUser) {
-      throw new Error("User Already Exists");
+      throw new Error(ErrorMessage.USER_ALREADY_EXISTS);
     }
 
     const hashedPassword = await hashPassword(password);
