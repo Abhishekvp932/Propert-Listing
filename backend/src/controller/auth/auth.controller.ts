@@ -11,7 +11,7 @@ export class AuthController implements IAuthController {
 
   async login(req: Request, res: Response): Promise<void> {
     try {
-        console.log('login request is comming ...');
+        // console.log('login request is comming ...');
       const { email, password } = req.body;
       const result = await this._authService.login(email, password);
       res.cookie("accessToken", result.accessToken, {

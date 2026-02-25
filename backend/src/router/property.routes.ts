@@ -21,5 +21,6 @@ router.route('/user-properties/:userId').get(authMiddleware,propertyController.g
 router.route('/all').get(authMiddleware,propertyController.getAllProperties.bind(propertyController));
 
 router.route('/:propertyId').get(authMiddleware,propertyController.getSingleProperty.bind(propertyController))
-.delete(authMiddleware,propertyController.deleteProperty.bind(propertyController));
+.delete(authMiddleware,propertyController.deleteProperty.bind(propertyController))
+.put(authMiddleware,cloudUpload.array('propertyImage',4),propertyController.updateProperty.bind(propertyController));
 export default router;

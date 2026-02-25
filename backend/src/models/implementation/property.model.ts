@@ -8,12 +8,12 @@ const propertySchema = new Schema<IProperty>(
     location: {
       type: String,
       required: true,
-      time: true,
+      trim: true,
     },
     title: {
       type: String,
       required: true,
-      time: true,
+      trim: true,
     },
     description: {
       type: String,

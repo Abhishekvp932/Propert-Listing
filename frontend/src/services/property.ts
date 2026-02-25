@@ -16,9 +16,9 @@ export const CreateProperty = async (formData: FormData) => {
   }
 };
 
-export const GetUserProperties = async (userId: string) => {
+export const GetUserProperties = async (userId: string,page:number,limit:number) => {
   try {
-    const response = await api.get(API_ROUTES.getUserProperties(userId));
+    const response = await api.get(API_ROUTES.getUserProperties(userId,page,limit));
     return response.data;
   } catch (error) {
     console.log(error);
@@ -26,9 +26,9 @@ export const GetUserProperties = async (userId: string) => {
   }
 };
 
-export const GetAllProperties = async () => {
+export const GetAllProperties = async (page:number,limit:number,search:string,minPrice:number,maxPrice:number) => {
   try {
-    const response = await api.get(API_ROUTES.getAllProperties);
+    const response = await api.get(API_ROUTES.getAllProperties(page,limit,search,minPrice,maxPrice));
 
     return response.data;
   } catch (error) {
@@ -51,6 +51,26 @@ export const GetSingleProperty = async (propertyId: string) => {
 export const DeleteProperty = async (propertyId: string) => {
   try {
     const response = await api.delete(API_ROUTES.deleteProperty(propertyId));
+    return response.data;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+};
+
+export const UpdateProperty = async (
+  propertyId: string,
+  formData: FormData,
+) => {
+  try {
+    const response = await api.put(
+      API_ROUTES.updateProperty(propertyId),
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+      },
+    );
+
     return response.data;
   } catch (error) {
     console.log(error);

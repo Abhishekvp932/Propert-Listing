@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Home, Search, Filter, MapPin, Calendar } from "lucide-react";
 import { Header } from "@/layout/Header";
 import { Footer } from "@/layout/Footer";
 import { Link } from "react-router";
 import { GetAllProperties } from "@/services/property";
+import Pagination from "@/components/common/Pagination";
 
 interface Property {
   _id: string;
@@ -26,7 +27,9 @@ interface FilterState {
 export default function PropertiesPage() {
   const [properties, setProperties] = useState<Property[]>([]);
   console.log("properties", properties);
-
+  const [page, setPage] = useState(1);
+  const [totalPage, setTotalPage] = useState(1);
+  const limit = 10;
   const [loading, setLoading] = useState<boolean>(false);
   const [filters, setFilters] = useState<FilterState>({
     searchQuery: "",
@@ -37,10 +40,17 @@ export default function PropertiesPage() {
     const fetchProperties = async () => {
       try {
         setLoading(true);
-        const res = await GetAllProperties();
+        const res = await GetAllProperties(
+          page,
+          limit,
+          filters.searchQuery,
+          filters.minPrice,
+          filters.maxPrice,
+        );
         console.log("get all properties response", res);
         // If backend returns { properties: [...] }
-        setProperties(res);
+        setProperties(res.data);
+        setTotalPage(res.totalPages);
 
         // If backend returns array directly:
         // setProperties(res);
@@ -52,19 +62,7 @@ export default function PropertiesPage() {
     };
 
     fetchProperties();
-  }, []);
-
-  const filteredProperties = useMemo(() => {
-    return properties.filter((property) => {
-      const matchesSearch = property.title
-        .toLowerCase()
-        .includes(filters.searchQuery.toLowerCase());
-      const matchesPrice =
-        property.price >= filters.minPrice &&
-        property.price <= filters.maxPrice;
-      return matchesSearch && matchesPrice;
-    });
-  }, [properties, filters]);
+  }, [page, filters]);
 
   const formatPrice = (price: number): string => {
     return new Intl.NumberFormat("en-US", {
@@ -74,16 +72,25 @@ export default function PropertiesPage() {
     }).format(price);
   };
 
-  const handleSearchChange = (value: string): void => {
+  const handleSearchChange = (value: string) => {
     setFilters((prev) => ({ ...prev, searchQuery: value }));
+    setPage(1);
   };
 
-  const handleMinPriceChange = (value: string): void => {
-    setFilters((prev) => ({ ...prev, minPrice: parseInt(value) || 0 }));
+  const handleMinPriceChange = (value: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      minPrice: parseInt(value) || 0,
+    }));
+    setPage(1);
   };
 
-  const handleMaxPriceChange = (value: string): void => {
-    setFilters((prev) => ({ ...prev, maxPrice: parseInt(value) || 5000000 }));
+  const handleMaxPriceChange = (value: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      maxPrice: parseInt(value) || 5000000,
+    }));
+    setPage(1);
   };
 
   return (
@@ -109,7 +116,7 @@ export default function PropertiesPage() {
                 <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search by title..."
+                  placeholder="Search by location..."
                   value={filters.searchQuery}
                   onChange={(e) => handleSearchChange(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -158,8 +165,7 @@ export default function PropertiesPage() {
         {/* Results Counter */}
         <div className="mb-6">
           <p className="text-sm text-gray-600">
-            Showing{" "}
-            <span className="font-semibold">{filteredProperties.length}</span>{" "}
+            Showing <span className="font-semibold">{properties.length}</span>{" "}
             of <span className="font-semibold">{properties.length}</span>{" "}
             properties
           </p>
@@ -169,9 +175,9 @@ export default function PropertiesPage() {
           <div className="text-center py-12">
             <p>Loading properties...</p>
           </div>
-        ) : filteredProperties.length > 0 ? (
+        ) : properties.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProperties.map((property) => (
+            {properties.map((property) => (
               <div
                 key={property._id}
                 className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300 h-full flex flex-col"
@@ -245,7 +251,13 @@ export default function PropertiesPage() {
             </p>
           </div>
         )}
-
+        <div className="flex justify-center mt-8">
+          <Pagination
+            totalPages={totalPage}
+            currentPage={page}
+            onPageChange={(newPage) => setPage(newPage)}
+          />
+        </div>
         <Footer />
       </div>
     </main>

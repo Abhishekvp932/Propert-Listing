@@ -1,6 +1,6 @@
 // components/property/PropertyModal.tsx
 
-import { useState, useRef, useEffect } from "react";
+import { useRef, useEffect, useCallback, useReducer } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,32 +14,60 @@ interface PropertyModalProps {
   onClose: () => void;
   onCreate: (data: CreatePropertyInput) => void;
   onUpdate?: (id: string, data: CreatePropertyInput) => void;
-  editingProperty?: Property | null; // ← if passed, modal is in edit mode
+  editingProperty?: Property | null;
 }
 
-interface FormState {
+interface PreviewItem {
+  preview: string;
+  file?: File;
+  isUrl?: boolean;
+}
+
+// ── All UI state lives in one object → single dispatch, no cascading renders ──
+interface ModalState {
   title: string;
   description: string;
   price: string;
   location: string;
-  imageUrl: string;      // current URL input field value
-  imageFile: File | null;
+  previews: PreviewItem[];
+  errors: Record<string, string>;
 }
 
-interface PreviewItem {
-  preview: string;   // base64 or URL — for display only
-  file?: File;       // only in upload mode
-  isUrl?: boolean;   // only in URL mode
-}
+type ModalAction =
+  | { type: "RESET"; payload: Partial<ModalState> }
+  | { type: "SET_FIELD"; field: keyof Pick<ModalState, "title" | "description" | "price" | "location">; value: string }
+  | { type: "SET_ERRORS"; errors: Record<string, string> }
+  | { type: "CLEAR_ERROR"; field: string }
+  | { type: "ADD_PREVIEWS"; items: PreviewItem[] }
+  | { type: "REMOVE_PREVIEW"; index: number };
 
-const INITIAL_FORM: FormState = {
+const EMPTY_STATE: ModalState = {
   title: "",
   description: "",
   price: "",
   location: "",
-  imageUrl: "",
-  imageFile: null,
+  previews: [],
+  errors: {},
 };
+
+function modalReducer(state: ModalState, action: ModalAction): ModalState {
+  switch (action.type) {
+    case "RESET":
+      return { ...EMPTY_STATE, ...action.payload };
+    case "SET_FIELD":
+      return { ...state, [action.field]: action.value };
+    case "SET_ERRORS":
+      return { ...state, errors: action.errors };
+    case "CLEAR_ERROR":
+      return { ...state, errors: { ...state.errors, [action.field]: "" } };
+    case "ADD_PREVIEWS":
+      return { ...state, previews: [...state.previews, ...action.items] };
+    case "REMOVE_PREVIEW":
+      return { ...state, previews: state.previews.filter((_, i) => i !== action.index) };
+    default:
+      return state;
+  }
+}
 
 const MAX_IMAGES = 4;
 
@@ -50,53 +78,48 @@ export function PropertyModal({
   onUpdate,
   editingProperty,
 }: PropertyModalProps) {
-  const [form, setForm] = useState<FormState>(INITIAL_FORM);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [imageMode, setImageMode] = useState<"upload" | "url">("upload");
-  const [previews, setPreviews] = useState<PreviewItem[]>([]);
+  const [state, dispatch] = useReducer(modalReducer, EMPTY_STATE);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const user = useSelector((state: RootState) => state.user.user);
 
   const isEditMode = !!editingProperty;
+  const canAddMore = state.previews.length < MAX_IMAGES;
 
-  // ── Pre-fill form when editing ─────────────────────────────────────────────
-useEffect(() => {
-  if (editingProperty) {
-    setForm({
-      title: editingProperty.title,
-      description: editingProperty.description,
-      price: editingProperty.price.toString(),
-      location: editingProperty.location,
-      imageUrl: "",
-      imageFile: null,
-    });
-    // ✅ Guard in case imageUrl is undefined
-    setPreviews(
-      (editingProperty.imageUrl ?? []).map((url) => ({ preview: url, isUrl: true }))
-    );
-    setImageMode("url");
-  } else {
-    setForm(INITIAL_FORM);
-    setPreviews([]);
-    setImageMode("upload");
-  }
-}, [editingProperty]);
+  // ── Single dispatch in effect — no cascading renders ───────────────────────
+  const buildResetPayload = useCallback(
+    (property: Property | null | undefined): Partial<ModalState> => {
+      if (!property) return EMPTY_STATE;
+      return {
+        title: property.title,
+        description: property.description,
+        price: property.price.toString(),
+        location: property.location,
+        previews: (property.imageUrl ?? []).map((url) => ({ preview: url, isUrl: true })),
+        errors: {},
+      };
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    // ONE dispatch → ONE state update → no cascading renders
+    dispatch({ type: "RESET", payload: buildResetPayload(editingProperty) });
+  }, [open, editingProperty, buildResetPayload]);
 
   if (!open) return null;
 
-  const canAddMore = previews.length < MAX_IMAGES;
-
   // ── Validation ─────────────────────────────────────────────────────────────
   const validate = (): boolean => {
-    const newErrors: Record<string, string> = {};
-    if (!form.title.trim()) newErrors.title = "Title is required";
-    if (!form.description.trim()) newErrors.description = "Description is required";
-    if (!form.price) newErrors.price = "Price is required";
-    else if (isNaN(Number(form.price))) newErrors.price = "Price must be a number";
-    if (!form.location.trim()) newErrors.location = "Location is required";
-    if (previews.length === 0) newErrors.imageUrl = "At least one image is required";
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const errors: Record<string, string> = {};
+    if (!state.title.trim()) errors.title = "Title is required";
+    if (!state.description.trim()) errors.description = "Description is required";
+    if (!state.price) errors.price = "Price is required";
+    else if (isNaN(Number(state.price))) errors.price = "Price must be a number";
+    if (!state.location.trim()) errors.location = "Location is required";
+    if (state.previews.length === 0) errors.images = "At least one image is required";
+    dispatch({ type: "SET_ERRORS", errors });
+    return Object.keys(errors).length === 0;
   };
 
   // ── Submit ─────────────────────────────────────────────────────────────────
@@ -105,19 +128,19 @@ useEffect(() => {
     if (!validate()) return;
 
     const payload: CreatePropertyInput = {
-      title: form.title.trim(),
-      description: form.description.trim(),
-      price: Number(form.price),
-      location: form.location.trim(),
+      title: state.title.trim(),
+      description: state.description.trim(),
+      price: Number(state.price),
+      location: state.location.trim(),
       owner: user?._id as string,
-      imageFiles: previews.filter((p) => p.file).map((p) => p.file as File),
-      imageUrl: previews.filter((p) => p.isUrl).map((p) => p.preview),
+      imageFiles: state.previews.filter((p) => p.file).map((p) => p.file as File),
+      imageUrl: state.previews.filter((p) => p.isUrl).map((p) => p.preview),
     };
 
-    if (isEditMode && onUpdate && editingProperty._id) {
-      onUpdate(editingProperty._id, payload); // ← edit
+    if (isEditMode && onUpdate && editingProperty?._id) {
+      onUpdate(editingProperty._id, payload);
     } else {
-      onCreate(payload); // ← create
+      onCreate(payload);
     }
 
     handleClose();
@@ -125,83 +148,57 @@ useEffect(() => {
 
   // ── Reset & Close ──────────────────────────────────────────────────────────
   const handleClose = () => {
-    setForm(INITIAL_FORM);
-    setErrors({});
-    setPreviews([]);
-    setImageMode("upload");
+    dispatch({ type: "RESET", payload: EMPTY_STATE });
     onClose();
   };
 
-  // ── Upload mode ────────────────────────────────────────────────────────────
+  // ── File upload handlers ───────────────────────────────────────────────────
   const addFiles = (files: File[]) => {
-    const remaining = MAX_IMAGES - previews.length;
+    const remaining = MAX_IMAGES - state.previews.length;
     if (remaining <= 0) return;
+
     const toAdd = files.slice(0, remaining);
+    const loaded: PreviewItem[] = [];
+
     toAdd.forEach((file) => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPreviews((prev) => [
-          ...prev,
-          { preview: reader.result as string, file },
-        ]);
-        if (errors.imageUrl) setErrors((prev) => ({ ...prev, imageUrl: "" }));
+        loaded.push({ preview: reader.result as string, file });
+        // Batch all loaded files into a single dispatch when done
+        if (loaded.length === toAdd.length) {
+          dispatch({ type: "ADD_PREVIEWS", items: loaded });
+          dispatch({ type: "CLEAR_ERROR", field: "images" });
+        }
       };
       reader.readAsDataURL(file);
     });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    addFiles(files);
+    addFiles(Array.from(e.target.files || []));
     e.target.value = "";
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    const files = Array.from(e.dataTransfer.files).filter((f) =>
-      f.type.startsWith("image/")
-    );
-    addFiles(files);
+    addFiles(Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/")));
   };
 
-  // ── URL mode ───────────────────────────────────────────────────────────────
-  const handleAddUrl = () => {
-    const url = form.imageUrl.trim();
-    if (!url || !canAddMore) return;
-    setPreviews((prev) => [...prev, { preview: url, isUrl: true }]);
-    setForm((prev) => ({ ...prev, imageUrl: "" }));
-    if (errors.imageUrl) setErrors((prev) => ({ ...prev, imageUrl: "" }));
-  };
-
-  // ── Shared ─────────────────────────────────────────────────────────────────
-  const handleRemoveImage = (index: number) => {
-    setPreviews((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
-  };
-
-  const switchMode = (mode: "upload" | "url") => {
-    setImageMode(mode);
-    // Don't clear previews when switching modes in edit — user may want to keep existing images
-    if (!isEditMode) {
-      setPreviews([]);
-      setForm((prev) => ({ ...prev, imageUrl: "" }));
-    }
+    dispatch({
+      type: "SET_FIELD",
+      field: name as keyof Pick<ModalState, "title" | "description" | "price" | "location">,
+      value,
+    });
+    if (state.errors[name]) dispatch({ type: "CLEAR_ERROR", field: name });
   };
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) handleClose();
-      }}
+      onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
@@ -211,9 +208,7 @@ useEffect(() => {
               {isEditMode ? "Edit Property" : "Add New Property"}
             </h2>
             <p className="text-slate-500 text-sm mt-1">
-              {isEditMode
-                ? "Update your property details"
-                : "Fill in the details to list your property"}
+              {isEditMode ? "Update your property details" : "Fill in the details to list your property"}
             </p>
           </div>
           <button
@@ -228,120 +223,72 @@ useEffect(() => {
         <form onSubmit={handleSubmit} className="px-8 py-6 space-y-5">
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-slate-800 mb-1.5">
-              Property Title
-            </label>
+            <label className="block text-sm font-medium text-slate-800 mb-1.5">Property Title</label>
             <Input
               name="title"
-              value={form.title}
+              value={state.title}
               onChange={handleChange}
               placeholder="e.g., Modern Downtown Apartment"
-              className={errors.title ? "border-red-400" : ""}
+              className={state.errors.title ? "border-red-400" : ""}
             />
-            {errors.title && (
-              <p className="text-red-500 text-xs mt-1">{errors.title}</p>
-            )}
+            {state.errors.title && <p className="text-red-500 text-xs mt-1">{state.errors.title}</p>}
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-slate-800 mb-1.5">
-              Description
-            </label>
+            <label className="block text-sm font-medium text-slate-800 mb-1.5">Description</label>
             <Textarea
               name="description"
-              value={form.description}
+              value={state.description}
               onChange={handleChange}
               placeholder="Describe your property..."
               rows={3}
-              className={errors.description ? "border-red-400" : ""}
+              className={state.errors.description ? "border-red-400" : ""}
             />
-            {errors.description && (
-              <p className="text-red-500 text-xs mt-1">{errors.description}</p>
-            )}
+            {state.errors.description && <p className="text-red-500 text-xs mt-1">{state.errors.description}</p>}
           </div>
 
           {/* Price + Location */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-800 mb-1.5">
-                Price ($)
-              </label>
+              <label className="block text-sm font-medium text-slate-800 mb-1.5">Price ($)</label>
               <Input
                 name="price"
-                value={form.price}
+                value={state.price}
                 onChange={handleChange}
                 placeholder="e.g., 2500"
-                className={errors.price ? "border-red-400" : ""}
+                className={state.errors.price ? "border-red-400" : ""}
               />
-              {errors.price && (
-                <p className="text-red-500 text-xs mt-1">{errors.price}</p>
-              )}
+              {state.errors.price && <p className="text-red-500 text-xs mt-1">{state.errors.price}</p>}
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-slate-800 mb-1.5">
-                Location
-              </label>
+              <label className="block text-sm font-medium text-slate-800 mb-1.5">Location</label>
               <Input
                 name="location"
-                value={form.location}
+                value={state.location}
                 onChange={handleChange}
                 placeholder="e.g., New York, NY"
-                className={errors.location ? "border-red-400" : ""}
+                className={state.errors.location ? "border-red-400" : ""}
               />
-              {errors.location && (
-                <p className="text-red-500 text-xs mt-1">{errors.location}</p>
-              )}
+              {state.errors.location && <p className="text-red-500 text-xs mt-1">{state.errors.location}</p>}
             </div>
           </div>
 
           {/* Image Section */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-slate-800">
-                Property Images
-              </label>
-              <span className="text-xs text-slate-400">
-                {previews.length} / {MAX_IMAGES} images
-              </span>
+              <label className="block text-sm font-medium text-slate-800">Property Images</label>
+              <span className="text-xs text-slate-400">{state.previews.length} / {MAX_IMAGES} images</span>
             </div>
 
-            {/* Mode Toggle */}
-            <div className="flex rounded-lg border border-slate-200 p-1 mb-3 w-fit gap-1">
-              <button
-                type="button"
-                onClick={() => switchMode("upload")}
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-                  imageMode === "upload"
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                Upload Files
-              </button>
-              <button
-                type="button"
-                onClick={() => switchMode("url")}
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-                  imageMode === "url"
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                Image URLs
-              </button>
-            </div>
-
-            {/* Upload drop zone */}
-            {imageMode === "upload" && canAddMore && (
+            {canAddMore && (
               <div
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
                 className={`border-2 border-dashed rounded-xl cursor-pointer transition-colors mb-3
                   border-slate-200 hover:border-blue-300 hover:bg-slate-50
-                  ${errors.imageUrl ? "border-red-300" : ""}`}
+                  ${state.errors.images ? "border-red-300" : ""}`}
               >
                 <div className="h-32 flex flex-col items-center justify-center gap-2">
                   <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
@@ -349,12 +296,9 @@ useEffect(() => {
                   </div>
                   <div className="text-center">
                     <p className="text-sm font-medium text-slate-600">
-                      Drop images here, or{" "}
-                      <span className="text-blue-600">browse</span>
+                      Drop images here, or <span className="text-blue-600">browse</span>
                     </p>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      PNG, JPG, WEBP — select multiple at once
-                    </p>
+                    <p className="text-xs text-slate-400 mt-0.5">PNG, JPG, WEBP — select multiple at once</p>
                   </div>
                 </div>
                 <input
@@ -368,63 +312,28 @@ useEffect(() => {
               </div>
             )}
 
-            {/* URL input + Add button */}
-            {imageMode === "url" && canAddMore && (
-              <div className="flex gap-2 mb-3">
-                <Input
-                  name="imageUrl"
-                  type="url"
-                  value={form.imageUrl}
-                  onChange={handleChange}
-                  placeholder="https://example.com/image.jpg"
-                  className="flex-1"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleAddUrl();
-                    }
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleAddUrl}
-                  disabled={!form.imageUrl.trim()}
-                >
-                  Add
-                </Button>
-              </div>
-            )}
-
-            {/* Max reached notice */}
             {!canAddMore && (
               <p className="text-amber-500 text-xs mb-2">
                 Maximum of {MAX_IMAGES} images reached. Remove one to add another.
               </p>
             )}
 
-            {/* Preview grid */}
-            {previews.length > 0 && (
+            {state.previews.length > 0 && (
               <div className="grid grid-cols-4 gap-2 mt-1">
-                {previews.map((item, index) => (
-                  <div
-                    key={index}
-                    className="relative h-20 rounded-lg overflow-hidden border border-slate-200 group"
-                  >
+                {state.previews.map((item, index) => (
+                  <div key={index} className="relative h-20 rounded-lg overflow-hidden border border-slate-200 group">
                     <img
                       src={item.preview}
                       alt={`Preview ${index + 1}`}
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        e.currentTarget.src =
-                          "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=200&h=150&fit=crop";
+                        e.currentTarget.src = "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=200&h=150&fit=crop";
                       }}
                     />
                     <button
                       type="button"
-                      onClick={() => handleRemoveImage(index)}
-                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5
-                        opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => dispatch({ type: "REMOVE_PREVIEW", index })}
+                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <Trash2 size={12} />
                     </button>
@@ -436,9 +345,7 @@ useEffect(() => {
               </div>
             )}
 
-            {errors.imageUrl && (
-              <p className="text-red-500 text-xs mt-1">{errors.imageUrl}</p>
-            )}
+            {state.errors.images && <p className="text-red-500 text-xs mt-1">{state.errors.images}</p>}
           </div>
 
           {/* Actions */}
@@ -446,12 +353,7 @@ useEffect(() => {
             <Button type="submit" className="flex-1">
               {isEditMode ? "Save Changes" : "Add Property"}
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1"
-              onClick={handleClose}
-            >
+            <Button type="button" variant="outline" className="flex-1" onClick={handleClose}>
               Cancel
             </Button>
           </div>

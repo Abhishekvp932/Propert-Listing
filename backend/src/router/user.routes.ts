@@ -9,6 +9,7 @@ const userService = new UserService(userRepository);
 const userController = new UserController(userService);
 
 
+router.route('/').get(userController.logout.bind(userController));
 
 
 export default router;

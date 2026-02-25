@@ -3,10 +3,12 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 // import { Button } from '@/components/ui/button';
-import { Home, User, LogOut, UserCircle } from "lucide-react";
+import { Home, User, LogOut } from "lucide-react";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/app/store";
 import { logout } from "@/features/userSlice";
+import { handleApiError } from "@/utils/handleApiError";
+import { Logout } from "@/services/user";
 
 // const IS_LOGGED_IN = true;
 // const mockUser = { name: 'Alex Johnson', email: 'alex@example.com' };
@@ -37,10 +39,15 @@ export function Header() {
     }
   }, [user, navigation]);
 
-  const handleLogout = () => {
-    setDropdownOpen(false);
+  const handleLogout = async() => {
+   try {
+     setDropdownOpen(false);
     logout();
+    await Logout();
     navigation("/");
+   } catch (error) {
+    handleApiError(error);
+   }
   };
 
   return (
@@ -68,12 +75,6 @@ export function Header() {
               className="text-sm text-muted-foreground hover:text-foreground transition"
             >
               Sell
-            </Link>
-            <Link
-              to="#"
-              className="text-sm text-muted-foreground hover:text-foreground transition"
-            >
-              About
             </Link>
           </div>
 
@@ -103,15 +104,6 @@ export function Header() {
                     </p>
                   </div>
 
-                  {/* Profile Option */}
-                  <Link
-                    to="/profile"
-                    onClick={() => setDropdownOpen(false)}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted transition"
-                  >
-                    <UserCircle className="w-4 h-4 text-muted-foreground" />
-                    Profile
-                  </Link>
 
                   {/* Logout Option */}
                   <button

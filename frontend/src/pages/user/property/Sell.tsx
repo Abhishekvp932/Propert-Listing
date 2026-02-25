@@ -14,24 +14,29 @@ import {
   CreateProperty,
   DeleteProperty,
   GetUserProperties,
+  UpdateProperty,
 } from "@/services/property";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/app/store";
+import Pagination from "@/components/common/Pagination";
 
 export default function SellPage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [showModal, setShowModal] = useState<boolean>(false);
-  const [editingProperty, setEditingProperty] = useState<Property | null>(null); // ← track which property is being edited
+  const [page, setPage] = useState(1);
+  const [totalPage, setTotalPage] = useState(1);
+  const limit = 10;
+  const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const user = useSelector((state: RootState) => state.user.user?._id);
 
-  // ── Fetch user properties ─────────────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
     const fetchProperties = async () => {
       try {
-        const res = await GetUserProperties(user);
+        const res = await GetUserProperties(user, page, limit);
         setProperties(res.properties);
+        setTotalPage(res.totalPages);
       } catch (error) {
         toast.error(handleApiError(error));
       } finally {
@@ -41,36 +46,31 @@ export default function SellPage() {
     fetchProperties();
   }, [user]);
 
-  // ── Create ────────────────────────────────────────────────────────────────
   const handleCreate = async (data: CreatePropertyInput) => {
     try {
       const formData = buildFormData(data);
       const res = await CreateProperty(formData);
       toast.success(res.msg);
-      // Refetch to show the newly added property
-      const updated = await GetUserProperties(user!);
+      const updated = await GetUserProperties(user!, page, limit);
       setProperties(updated.properties);
     } catch (error) {
       toast.error(handleApiError(error));
     }
   };
 
-  // ── Update ────────────────────────────────────────────────────────────────
   const handleUpdate = async (id: string, data: CreatePropertyInput) => {
     try {
+      console.log('update data',data);
       const formData = buildFormData(data);
-      console.log("formdata", formData, id);
-      // const res = await UpdateProperty(id, formData);
-      // toast.success(res.msg);
-      // Refetch to reflect updated data
-      const updated = await GetUserProperties(user!);
+      const res = await UpdateProperty(id, formData);
+      toast.success(res.msg);
+      const updated = await GetUserProperties(user!, page, limit);
       setProperties(updated.properties);
     } catch (error) {
       toast.error(handleApiError(error));
     }
   };
 
-  // ── Shared FormData builder ───────────────────────────────────────────────
   const buildFormData = (data: CreatePropertyInput): FormData => {
     const formData = new FormData();
     formData.append("title", data.title);
@@ -81,9 +81,11 @@ export default function SellPage() {
 
     if (data.imageFiles && data.imageFiles.length > 0) {
       data.imageFiles.forEach((file) => formData.append("propertyImage", file));
-    } else if (data.imageUrl && data.imageUrl.length > 0) {
+    }
+    if (data.imageUrl && data.imageUrl.length > 0) {
       data.imageUrl.forEach((url) => formData.append("imageUrl", url));
     }
+
     return formData;
   };
 
@@ -91,7 +93,6 @@ export default function SellPage() {
     try {
       setProperties((prev) => prev.filter((p) => p._id !== id));
       const res = await DeleteProperty(id);
-
       toast.success(res.msg);
     } catch (error) {
       toast.error(handleApiError(error));
@@ -125,7 +126,7 @@ export default function SellPage() {
           <Button
             className="gap-2"
             onClick={() => {
-              setEditingProperty(null); // ensure add mode
+              setEditingProperty(null);
               setShowModal(true);
             }}
           >
@@ -160,12 +161,20 @@ export default function SellPage() {
                 key={property._id}
                 property={property}
                 onDelete={handleDelete}
-                onEdit={handleEdit} // ← passes selected property to open edit modal
+                onEdit={handleEdit}
               />
             ))}
           </div>
         )}
       </main>
+
+      <div className="flex justify-center mt-8">
+        <Pagination
+          totalPages={totalPage}
+          currentPage={page}
+          onPageChange={(newPage) => setPage(newPage)}
+        />
+      </div>
 
       <Footer />
 
@@ -174,10 +183,11 @@ export default function SellPage() {
         onClose={handleCloseModal}
         onCreate={handleCreate}
         onUpdate={handleUpdate}
-        editingProperty={editingProperty} // ← null = add mode, Property = edit mode
+        editingProperty={editingProperty}
       />
 
       <ToastContainer autoClose={200} />
     </div>
   );
 }
+  

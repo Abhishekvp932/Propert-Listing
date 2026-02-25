@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { Header } from "@/layout/Header";
 import { Footer } from "@/layout/Footer";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { GetSingleProperty } from "@/services/property";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -22,7 +22,7 @@ export interface Property {
   price: number;
   location: string;
   imageUrl: string[]; // ✅ matches backend field name and is an array
-  createdDate: string;
+  createdAt: string;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -51,7 +51,7 @@ export default function PropertyDetailPage() {
   const [activeIndex, setActiveIndex] = useState<number>(0);
   // const [saved, setSaved] = useState<boolean>(false);
   const { id } = useParams<{ id: string }>();
-
+  const navigation = useNavigate();
   useEffect(() => {
     if (!id) return;
 
@@ -105,7 +105,11 @@ export default function PropertyDetailPage() {
       </main>
     );
   }
+ 
 
+  const handleBackButton = ()=>{
+   navigation(-1);
+  }
   // ── Main render (property is guaranteed non-null here) ────────────────────
   return (
     <main className="min-h-screen bg-gray-50">
@@ -116,9 +120,10 @@ export default function PropertyDetailPage() {
         <button
           type="button"
           className="flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+          onClick={handleBackButton}
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to listings
+          Back 
         </button>
 
         {/* ── Image Gallery ── */}
@@ -198,7 +203,7 @@ export default function PropertyDetailPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-gray-500 shrink-0" />
-                  <span>Listed on {formatDate(property.createdDate)}</span>
+                  <span>Listed on {formatDate(property.createdAt)}</span>
                 </div>
               </div>
             </div>
@@ -305,7 +310,7 @@ export default function PropertyDetailPage() {
                   Listed On
                 </p>
                 <p className="text-sm font-semibold text-gray-900">
-                  {formatDate(property.createdDate)}
+                  {formatDate(property.createdAt)}
                 </p>
               </div>
             </div>

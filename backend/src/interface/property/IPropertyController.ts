@@ -6,4 +6,5 @@ export interface IPropertyController {
     getAllProperties(req:Request,res:Response):Promise<void>;
     getSingleProperty(req:Request,res:Response):Promise<void>;
     deleteProperty(req:Request,res:Response):Promise<void>;
+    updateProperty(req:Request,res:Response):Promise<void>;
 }
