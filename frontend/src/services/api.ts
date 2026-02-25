@@ -1,19 +1,20 @@
 import axios from "axios";
-// const api = axios.create({
-//   baseURL:import.meta.env.VITE_API_URL,
-//   withCredentials: true,
-// });
 
 const api = axios.create({
-  baseURL:'http://localhost:4000',
+  baseURL: import.meta.env.VITE_API_URL,
   withCredentials: true,
 });
+
+// const api = axios.create({
+//   baseURL:'http://localhost:4000',
+//   withCredentials: true,
+// });
 
 import { toast } from "react-toastify";
 import { store } from "@/app/store";
 import { logout } from "@/features/userSlice";
 api.interceptors.response.use(
-  (response) => response, 
+  (response) => response,
 
   (error) => {
     if (error.code === "ERR_NETWORK") {
@@ -38,9 +39,7 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
     return Promise.reject(error);
-  }
+  },
 );
-
-
 
 export default api;
