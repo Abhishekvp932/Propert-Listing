@@ -16,15 +16,15 @@ export class AuthController implements IAuthController {
       const result = await this._authService.login(email, password);
       res.cookie("accessToken", result.accessToken, {
         httpOnly: true,
-        secure: false,
-        sameSite: "lax",
+        secure: true,
+        sameSite: "none",
         maxAge: Number(process.env.ACCESS_TOKEN_EXPIRE_TIME) * 1000,
       });
 
       res.cookie("refreshToken", result.refreshToken, {
         httpOnly: true,
-        secure: false,
-        sameSite: "lax",
+        secure: true,
+        sameSite: "none",
         maxAge: Number(process.env.REFRESH_TOKEN_EXPIRE_TIME) * 1000,
       });
       res.status(HttpStatus.OK).json(result.user);
