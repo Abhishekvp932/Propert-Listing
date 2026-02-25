@@ -4,7 +4,7 @@ import { IUserRepository } from "../../interface/user/IUserRepository";
 import { PropertyTypes } from "../../types/propertyType";
 import { CreatePropertyDTO } from "../../types/create-property.dto";
 import { IProperty } from "../../models/interface/IProperty";
-import { Types } from "mongoose";
+import { FilterQuery, Types } from "mongoose";
 import { PropertyEntity } from "../../types/propertyCreateType";
 import { ErrorMessage } from "../../utils/errorMessage";
 import mongoose from "mongoose";
@@ -48,7 +48,7 @@ export class PropertyService implements IPropertyService {
   async getAllProperties(page:number,limit:number,search:string,minPrice:number,maxPrice:number): Promise<{property:IProperty[],total:number}> {
     const skip = (page - 1) * limit;
 
-    const filter : mongoose.QueryFilter<IProperty> = {
+    const filter : FilterQuery<IProperty> = {
       price : {$gte:minPrice,$lte:maxPrice}
     }
 

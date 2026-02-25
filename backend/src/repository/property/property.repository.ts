@@ -1,4 +1,4 @@
-import { QueryFilter } from "mongoose";
+import { FilterQuery } from "mongoose";
 import { IPropertyRepository } from "../../interface/property/IPropertyRepository";
 import Property from "../../models/implementation/property.model";
 import { IProperty } from "../../models/interface/IProperty";
@@ -15,7 +15,7 @@ export class PropertyRepository extends BaseRepository<IProperty> implements IPr
         .skip(skip)
         .limit(limit)
     }
-    async count(filter?: QueryFilter<IProperty>): Promise<number> {
+    async count(filter?: FilterQuery<IProperty>): Promise<number> {
         return await Property.countDocuments(filter);
     }
 }

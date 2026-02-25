@@ -1,4 +1,4 @@
-import { Document, Model, QueryFilter } from "mongoose";
+import { Document, Model, FilterQuery } from "mongoose";
 import { IBaseRepository } from "../interface/IBaseRepository";
 
 export class BaseRepository<T extends Document> implements IBaseRepository<T> {
@@ -12,7 +12,7 @@ export class BaseRepository<T extends Document> implements IBaseRepository<T> {
     return await this._model.findById(id);
   }
 
-  async findAll(filter:QueryFilter<T>,skip:number,limit:number): Promise<T[]> {
+  async findAll(filter:FilterQuery<T>,skip:number,limit:number): Promise<T[]> {
     return await this._model.find(filter)
     .sort({createdAt:-1})
     .skip(skip)
