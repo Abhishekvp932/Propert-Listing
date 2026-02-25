@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { IPropertyController } from "../../interface/property/IPropertyController";
 import { IPropertyService } from "../../interface/property/IPropertyService";
-import { HttpStatus } from "../../utility/httpStatusCode";
+import { HttpStatus } from "../../utils/httpStatusCode";
 import { CreatePropertyDTO } from "../../types/create-property.dto";
 
 export class PropertyController implements IPropertyController {
@@ -93,6 +93,7 @@ export class PropertyController implements IPropertyController {
 
   async updateProperty(req: Request, res: Response): Promise<void> {
     try {
+      console.log('req.body',req.body,'files',req.files);
        const { title, description, price, location, owner } = req.body;
        const {propertyId} = req.params 
         const files = req.files as Express.Multer.File[];
@@ -110,6 +111,7 @@ export class PropertyController implements IPropertyController {
       const result = await this._propertyService.updateProperty(propertyId as string,dto);
       res.status(HttpStatus.OK).json(result);
     } catch (error) {
+      console.log(error);
       const err = error as Error;
       res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({msg : err.message});
     }

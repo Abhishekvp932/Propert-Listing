@@ -1,13 +1,13 @@
 import { IAuthService } from "../../interface/auth/IAuthService";
 import { IUserRepository } from "../../interface/user/IUserRepository";
 import { PayloadUser } from "../../types/payloadUser";
-import { ErrorMessage } from "../../utility/errorMessage";
-import { comparePassword, hashPassword } from "../../utility/hash";
+import { ErrorMessage } from "../../utils/errorMessage";
+import { comparePassword, hashPassword } from "../../utils/hash";
 import {
   generateAccessToken,
   generateRefreshToken,
   TokenPayload,
-} from "../../utility/token";
+} from "../../utils/token";
 export class AuthService implements IAuthService {
   constructor(private _userRepository: IUserRepository) {}
 

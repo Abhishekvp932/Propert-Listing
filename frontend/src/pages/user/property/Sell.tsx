@@ -60,7 +60,7 @@ export default function SellPage() {
 
   const handleUpdate = async (id: string, data: CreatePropertyInput) => {
     try {
-      console.log('update data',data);
+      console.log("update data", data);
       const formData = buildFormData(data);
       const res = await UpdateProperty(id, formData);
       toast.success(res.msg);
@@ -190,4 +190,3 @@ export default function SellPage() {
     </div>
   );
 }
-  

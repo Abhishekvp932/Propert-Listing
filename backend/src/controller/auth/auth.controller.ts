@@ -4,7 +4,7 @@ import { IAuthService } from "../../interface/auth/IAuthService";
 
 import { IAuthController } from "../../interface/auth/IAuthController";
 
-import { HttpStatus } from "../../utility/httpStatusCode";
+import { HttpStatus } from "../../utils/httpStatusCode";
 
 export class AuthController implements IAuthController {
   constructor(private _authService: IAuthService) {}

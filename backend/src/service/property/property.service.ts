@@ -6,7 +6,7 @@ import { CreatePropertyDTO } from "../../types/create-property.dto";
 import { IProperty } from "../../models/interface/IProperty";
 import { Types } from "mongoose";
 import { PropertyEntity } from "../../types/propertyCreateType";
-import { ErrorMessage } from "../../utility/errorMessage";
+import { ErrorMessage } from "../../utils/errorMessage";
 import mongoose from "mongoose";
 export class PropertyService implements IPropertyService {
   constructor(

@@ -1,10 +1,10 @@
 import { Response, NextFunction } from "express";
-import { HttpStatus } from "../utility/httpStatusCode";
+import { HttpStatus } from "../utils/httpStatusCode";
 import {
   generateAccessToken,
   verifyAccessToken,
   verifyRefreshToken,
-} from "../utility/token";
+} from "../utils/token";
 import { AuthRequest } from "../types/authRequest";
 import dotenv from "dotenv";
 
