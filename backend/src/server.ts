@@ -11,7 +11,7 @@ dotenv.config();
 const app: Application = express();
 
 const corsOperation = {
-  origin: "https://property-list-theta.vercel.app",
+  origin:process.env.API_URL,
   credentials: true ,
 };
 
